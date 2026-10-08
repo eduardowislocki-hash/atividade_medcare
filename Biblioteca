@@ -1,0 +1,134 @@
+```sql
+create table leitores (
+    id serial primary key,
+    nome varchar(100) not null,
+    email varchar(100) not null unique,
+    cpf char(11) not null unique,
+    telefone varchar(20) not null,
+    data_cadastro timestamp default current_timestamp
+);
+
+create table categorias (
+    id serial primary key,
+    nome varchar(100) not null unique
+);
+
+create table livros (
+    id serial primary key,
+    categoria_id int not null,
+    titulo varchar(150) not null,
+    isbn varchar(20) not null unique,
+    taxa_diaria decimal(10,2) not null check (taxa_diaria >0),
+    disponivel boolean default true,
+    foreign key (categoria_id) references categorias(id)
+);
+
+create table emprestimos (
+    id serial primary key,
+    leitor_id int not null,
+    data_emprestimo timestamp default current_timestamp,
+    status varchar(20) default 'ativo',
+    check (status in ('ativo', 'devolvido', 'atrasado')),
+    foreign key (leitor_id) references leitores(id)
+);
+
+create table itens_emprestimo (
+    id serial primary key,
+    emprestimo_id int not null,
+    livro_id int not null,
+    quantidade int not null check (quantidade > 0),
+    valor_diaria decimal(10,2) not null check (valor_diaria >= 0),
+    foreign key (emprestimo_id) references emprestimos(id),
+    foreign key (livro_id) references livros(id)
+);
+
+insert into categorias (nome) values
+('ficção'),
+('história'),
+('tecnologia');
+
+insert into livros (categoria_id, titulo, isbn, taxa_diaria, disponivel) values
+(1, 'o hobbit', '9780007525508', 6.50, true),
+(2, 'história do brasil', '9788535902771', 4.00, true),
+(3, 'banco de dados', '9788575225008', 8.00, true);
+
+insert into leitores (nome, email, cpf, telefone) values
+('gabriel costa', 'gabriel@email.com', '12345678901', '48999990001'),
+('beatriz lima', 'beatriz@email.com', '12345678902', '48999990002'),
+('lucas rocha', 'lucas@email.com', '12345678903', '48999990003');
+
+insert into emprestimos (leitor_id, status) values
+(1, 'devolvido'),
+(1, 'ativo'),
+(2, 'devolvido'),
+(3, 'atrasado');
+
+insert into itens_emprestimo (emprestimo_id, livro_id, quantidade, valor_diaria) values
+(1, 1, 2, 6.50),
+(1, 2, 1, 4.00),
+(2, 3, 1, 8.00),
+(3, 2, 2, 4.00);
+
+create view vw_acervo_ordenado as
+select
+    livros.titulo,
+    livros.isbn,
+    categorias.nome as categoria,
+    livros.taxa_diaria
+from livros
+inner join categorias
+on livros.categoria_id = categorias.id
+order by livros.taxa_diaria desc;
+
+create view vw_emprestimos_gabriel as
+select
+    emprestimos.id as id_emprestimo,
+    emprestimos.data_emprestimo,
+    livros.titulo,
+    itens_emprestimo.quantidade,
+    emprestimos.status
+from emprestimos
+inner join leitores
+on emprestimos.leitor_id = leitores.id
+inner join itens_emprestimo
+on emprestimos.id = itens_emprestimo.emprestimo_id
+inner join livros
+on itens_emprestimo.livro_id = livros.id
+where leitores.nome = 'gabriel costa';
+
+create view vw_total_emprestimos as
+select
+    emprestimos.id as id_emprestimo,
+    leitores.nome as leitor,
+    sum(itens_emprestimo.quantidade * itens_emprestimo.valor_diaria) as valor_total
+from emprestimos
+inner join leitores
+on emprestimos.leitor_id = leitores.id
+inner join itens_emprestimo
+on emprestimos.id = itens_emprestimo.emprestimo_id
+group by emprestimos.id, leitores.nome;
+
+select
+    livros.titulo,
+    livros.isbn,
+    livros.taxa_diaria
+from livros
+inner join categorias
+on livros.categoria_id = categorias.id
+where categorias.nome = 'ficção'
+and livros.taxa_diaria > 5
+and livros.disponivel = true;
+
+create view vw_faturamento_por_categoria as
+select
+    categorias.nome as categoria,
+    sum(itens_emprestimo.quantidade * itens_emprestimo.valor_diaria) as total_arrecadado
+from categorias
+inner join livros
+on categorias.id = livros.categoria_id
+inner join itens_emprestimo
+on livros.id = itens_emprestimo.livro_id
+inner join emprestimos
+on itens_emprestimo.emprestimo_id = emprestimos.id
+where emprestimos.status = 'devolvid
+```
